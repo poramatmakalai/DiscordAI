@@ -26,6 +26,13 @@ def fix_codeblock(text: str) -> str:
 
 
 def split_response(text: str):
+    """
+    แบ่งข้อความให้ไม่เกิน DISCORD_LIMIT ตัวอักษร
+
+    ถ้าจุดตัดอยู่กลาง code block (```...```) จะปิด ``` ให้ใน chunk นั้น
+    แล้วเปิด ``` ใหม่ให้ใน chunk ถัดไปอัตโนมัติ กัน backtick ค้าง/เพี้ยน
+    เวลาข้อความยาวถูกตัดแบ่งหลายข้อความ
+    """
 
     text = clean_response(text)
     text = fix_codeblock(text)
@@ -33,18 +40,49 @@ def split_response(text: str):
     if len(text) <= DISCORD_LIMIT:
         return [text]
 
-    chunks = []
+    chunks: list[str] = []
+    in_code_block = False
+    # ภาษาของ code block ปัจจุบัน (เช่น "python") เก็บไว้เผื่อต้องเปิดใหม่
+    current_lang = ""
 
     while len(text) > DISCORD_LIMIT:
 
-        index = text.rfind("\n", 0, DISCORD_LIMIT)
+        # เผื่อที่ไว้สำหรับปิด/เปิด ``` ในแต่ละ chunk (กันเกิน limit)
+        budget = DISCORD_LIMIT - 4
 
+        index = text.rfind("\n", 0, budget)
         if index == -1:
-            index = DISCORD_LIMIT
+            index = budget
 
-        chunks.append(text[:index])
+        chunk = text[:index]
+        rest  = text[index:]
 
-        text = text[index:]
+        # นับจำนวน ``` ใน chunk นี้ เพื่ออัปเดตสถานะว่าอยู่ในบล็อกโค้ดไหม
+        fence_count = chunk.count("```")
+
+        # ดึงชื่อภาษาจาก ``` ตัวล่าสุดที่ "เปิด" บล็อกใน chunk นี้ (ถ้ามี)
+        opens = list(re.finditer(r"```([^\n`]*)\n?", chunk))
+        was_in_block = in_code_block
+
+        if fence_count % 2 != 0:
+            in_code_block = not in_code_block
+            if in_code_block and opens:
+                current_lang = opens[-1].group(1).strip()
+            if not in_code_block:
+                current_lang = ""
+
+        if in_code_block:
+            # ตัดกลางบล็อกโค้ด → ปิด ``` ให้จบ chunk นี้
+            chunk += "\n```"
+
+        chunks.append(chunk)
+
+        if in_code_block:
+            # เปิด ``` ใหม่ให้ chunk ถัดไป (คง syntax highlight เดิมไว้)
+            fence = f"```{current_lang}\n" if current_lang else "```\n"
+            rest = fence + rest
+
+        text = rest
 
     if text:
         chunks.append(text)

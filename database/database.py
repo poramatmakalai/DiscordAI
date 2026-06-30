@@ -1,3 +1,4 @@
+import asyncio
 import sqlite3
 from pathlib import Path
 
@@ -8,10 +9,21 @@ DATABASE = "database/database.db"
 
 
 def connect():
-    return sqlite3.connect(
+    conn = sqlite3.connect(
         DATABASE,
-        check_same_thread=False
+        check_same_thread=False,
     )
+
+    # WAL mode: อนุญาตให้อ่านพร้อมกับเขียนได้โดยไม่ติด "database is locked"
+    # ง่ายและทนกว่า DELETE mode (default) มากเวลามี background task
+    # (เช่น ai/extractor.py) เขียน DB พร้อมกับ flow หลักใน main.py
+    conn.execute("PRAGMA journal_mode=WAL;")
+
+    # busy_timeout: ถ้าเจอ lock จริงๆ (เช่น checkpoint กำลังทำงาน)
+    # ให้ sqlite รอแล้ว retry เองภายใน driver แทนที่จะ throw ทันที
+    conn.execute("PRAGMA busy_timeout=5000;")
+
+    return conn
 
 
 db = connect()
@@ -21,6 +33,14 @@ db = connect()
 # เพราะ sqlite3 cursor ตัวเดียวกันถ้าถูกเรียกแทรกกันจะทำให้ query ผลลัพธ์ผิดเพี้ยนได้
 # ให้ใช้ db.cursor() สร้างใหม่ทุกครั้งที่ query แทน (ดู memory/manager.py, memory/long_memory.py)
 cursor = db.cursor()
+
+# ── Write lock ──────────────────────────────────────────────────────────────
+# WAL mode ช่วยให้ "อ่าน" พร้อมกับ "เขียน" ได้ แต่การ "เขียน" พร้อมกัน
+# จากหลาย coroutine ยังควรเรียงคิวกันอยู่ดี (SQLite อนุญาตแค่ 1 writer
+# ในเวลาเดียวกัน) ใช้ asyncio.Lock() นี้ครอบทุกจุดที่ทำ INSERT/UPDATE/DELETE
+# จาก coroutine (memory/manager.py, memory/long_memory.py) เพื่อกัน race
+# ระหว่าง flow หลักกับ background task ของ ai/extractor.py แบบชัวร์ๆ
+write_lock = asyncio.Lock()
 
 
 def initialize():

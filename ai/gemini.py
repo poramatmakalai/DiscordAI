@@ -184,8 +184,37 @@ def _file_to_part(path: str) -> Union[types.Part, str]:
 
 # ─── Retry Decorators ─────────────────────────────────────────────────────────
 
+from google.genai import errors as _genai_errors
+
+# HTTP status ที่ "retry แล้วมีโอกาสสำเร็จ" เท่านั้น
+# 429 = quota/rate limit, 500/502/503/504 = server ฝั่ง Google มีปัญหาชั่วคราว
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+
+def _is_retryable(exc: Exception) -> bool:
+    """
+    ตัดสินว่า exception นี้ควร retry ไหม
+
+    - google.genai.errors.APIError (และลูกคลาส ClientError/ServerError)
+      มี .code เป็น HTTP status ใช้เช็คได้ตรงๆ
+    - asyncio.TimeoutError / TimeoutError → retry ได้ (เน็ตหลุดชั่วคราว)
+    - อย่างอื่นที่ไม่รู้จัก (เช่น 400 Bad Request, 401/403 API key ผิด,
+      เนื้อหาโดน safety block) → ไม่ retry เพราะยิงซ้ำก็พังเหมือนเดิม
+      เสียเวลา + เสียโควต้าฟรีเปล่าๆ
+    """
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+        return True
+
+    if isinstance(exc, _genai_errors.APIError):
+        return getattr(exc, "code", None) in _RETRYABLE_STATUS
+
+    # ไม่รู้จัก type นี้ — กันเหนียวไว้ก่อนว่า "ลองอีกครั้งได้" เพราะอาจเป็น
+    # ปัญหาเครือข่ายที่ SDK ห่อ exception เป็นชนิดอื่น
+    return True
+
+
 def _sync_retry(func):
-    """Wrap a sync method with exponential back-off retry."""
+    """Wrap a sync method with exponential back-off retry (เฉพาะ error ที่ retry แล้วมีโอกาสสำเร็จ)."""
     def wrapper(self: "GeminiClient", *args, **kwargs):
         attempts = self.retry_attempts
         delay    = self.retry_delay
@@ -198,6 +227,14 @@ def _sync_retry(func):
                 raise   # don't retry logic errors — re-raise immediately
             except Exception as exc:
                 last_exc = exc
+
+                if not _is_retryable(exc):
+                    logger.warning(
+                        "[Gemini] Non-retryable error — %s: %s",
+                        type(exc).__name__, exc,
+                    )
+                    raise GeminiError(f"Non-retryable error: {exc}") from exc
+
                 logger.warning(
                     "[Gemini] Attempt %d/%d failed — %s: %s",
                     attempt, attempts, type(exc).__name__, exc,
@@ -217,7 +254,7 @@ def _sync_retry(func):
 
 
 def _async_retry(func):
-    """Wrap an async method with exponential back-off retry."""
+    """Wrap an async method with exponential back-off retry (เฉพาะ error ที่ retry แล้วมีโอกาสสำเร็จ)."""
     async def wrapper(self: "GeminiClient", *args, **kwargs):
         attempts = self.retry_attempts
         delay    = self.retry_delay
@@ -230,6 +267,14 @@ def _async_retry(func):
                 raise
             except Exception as exc:
                 last_exc = exc
+
+                if not _is_retryable(exc):
+                    logger.warning(
+                        "[Gemini/async] Non-retryable error — %s: %s",
+                        type(exc).__name__, exc,
+                    )
+                    raise GeminiError(f"Non-retryable error: {exc}") from exc
+
                 logger.warning(
                     "[Gemini/async] Attempt %d/%d failed — %s: %s",
                     attempt, attempts, type(exc).__name__, exc,

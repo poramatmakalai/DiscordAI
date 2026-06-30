@@ -195,7 +195,7 @@ async def on_message(message):
             # Save User Message
             # ------------------------------------------------------------------
 
-            memory.save(
+            await memory.save(
                 guild_id,
                 channel_id,
                 user_id,
@@ -277,7 +277,7 @@ async def on_message(message):
             # Save Model Reply
             # ------------------------------------------------------------------
 
-            memory.save(
+            await memory.save(
                 guild_id,
                 channel_id,
                 user_id,
@@ -409,3 +409,5 @@ async def start():
 
 if __name__ == "__main__":
     asyncio.run(start())
+
+    

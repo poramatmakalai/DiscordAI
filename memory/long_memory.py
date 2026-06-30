@@ -1,27 +1,29 @@
-from database.database import db
+from database.database import db, write_lock
 
 
 class LongMemory:
 
-    def set(self, guild_id, user_id, key, value):
+    async def set(self, guild_id, user_id, key, value):
 
-        cur = db.cursor()
+        async with write_lock:
 
-        cur.execute(
-            """
-            INSERT INTO long_memory(
-                guild_id, user_id, memory_key, memory_value
+            cur = db.cursor()
+
+            cur.execute(
+                """
+                INSERT INTO long_memory(
+                    guild_id, user_id, memory_key, memory_value
+                )
+                VALUES(?,?,?,?)
+                ON CONFLICT(guild_id,user_id,memory_key)
+                DO UPDATE SET
+                memory_value=excluded.memory_value,
+                updated=CURRENT_TIMESTAMP
+                """,
+                (guild_id, user_id, key, value)
             )
-            VALUES(?,?,?,?)
-            ON CONFLICT(guild_id,user_id,memory_key)
-            DO UPDATE SET
-            memory_value=excluded.memory_value,
-            updated=CURRENT_TIMESTAMP
-            """,
-            (guild_id, user_id, key, value)
-        )
 
-        db.commit()
+            db.commit()
 
     def get(self, guild_id, user_id):
 
@@ -40,3 +42,4 @@ class LongMemory:
 
 
 long_memory = LongMemory()
+

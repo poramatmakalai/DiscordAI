@@ -102,7 +102,7 @@ async def extract_and_save(
             value = str(value).strip()[:500]
 
             if key and value:
-                long_memory.set(guild_id, user_id, key, value)
+                await long_memory.set(guild_id, user_id, key, value)
                 logger.debug(
                     "[Extractor] guild=%s user=%s  %s = %s",
                     guild_id, user_id, key, value,

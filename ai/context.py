@@ -1,7 +1,7 @@
 import config
 
 
-def _memory_block(long_memory):
+def _memory_text(long_memory):
 
     if not config.ENABLE_LONG_MEMORY:
         return None
@@ -9,27 +9,15 @@ def _memory_block(long_memory):
     if not long_memory:
         return None
 
-    lines = [
-        "# User Memory"
-    ]
+    lines = ["# User Memory"]
 
     for key, value in long_memory:
+        lines.append(f"{key}: {value}")
 
-        lines.append(
-            f"{key}: {value}"
-        )
-
-    return {
-        "role": "user",
-        "parts": [
-            {
-                "text": "\n".join(lines)
-            }
-        ]
-    }
+    return "\n".join(lines)
 
 
-def _search_block(search_result):
+def _search_text(search_result):
 
     if not config.ENABLE_GOOGLE_SEARCH:
         return None
@@ -37,50 +25,23 @@ def _search_block(search_result):
     if not search_result:
         return None
 
-    return {
-        "role": "user",
-        "parts": [
-            {
-                "text":
-                "# Google Search\n\n"
-                + search_result
-            }
-        ]
-    }
+    return "# Google Search\n\n" + search_result
 
 
-def _file_block(file_summary):
+def _file_text(file_summary):
 
     if not file_summary:
         return None
 
-    return {
-        "role": "user",
-        "parts": [
-            {
-                "text":
-                "# Uploaded File\n\n"
-                + file_summary
-            }
-        ]
-    }
+    return "# Uploaded File\n\n" + file_summary
 
 
-def _vision_block(image_summary):
+def _vision_text(image_summary):
 
     if not image_summary:
         return None
 
-    return {
-        "role": "user",
-        "parts": [
-            {
-                "text":
-                "# Uploaded Image\n\n"
-                + image_summary
-            }
-        ]
-    }
+    return "# Uploaded Image\n\n" + image_summary
 
 
 def build_contents(
@@ -100,40 +61,31 @@ def build_contents(
     contents = []
 
     # ----------------------------
-    # Long Memory
+    # รวมบล็อกนำหน้าทั้งหมด (memory / search / file / vision) เป็น
+    # "user turn" เดียวแทนที่จะแยกหลาย turn ติดกัน — กัน Gemini สับสน
+    # กับการเจอ role="user" ต่อกันหลายครั้งโดยไม่มี "model" คั่น
     # ----------------------------
 
-    block = _memory_block(long_memory)
+    lead_blocks = [
+        _memory_text(long_memory),
+        _search_text(search_result),
+        _file_text(file_summary),
+        _vision_text(image_summary),
+    ]
 
-    if block:
-        contents.append(block)
+    lead_blocks = [b for b in lead_blocks if b]
 
-    # ----------------------------
-    # Google Search
-    # ----------------------------
-
-    block = _search_block(search_result)
-
-    if block:
-        contents.append(block)
-
-    # ----------------------------
-    # File Summary
-    # ----------------------------
-
-    block = _file_block(file_summary)
-
-    if block:
-        contents.append(block)
-
-    # ----------------------------
-    # Image Summary
-    # ----------------------------
-
-    block = _vision_block(image_summary)
-
-    if block:
-        contents.append(block)
+    if lead_blocks:
+        contents.append(
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": "\n\n".join(lead_blocks)
+                    }
+                ]
+            }
+        )
 
     # ----------------------------
     # Conversation

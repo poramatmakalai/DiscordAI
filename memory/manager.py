@@ -1,30 +1,34 @@
-from database.database import db
-
-
-MAX_MEMORY = 30
+import config
+from database.database import db, write_lock
 
 
 class MemoryManager:
 
-    def save(self, guild_id, channel_id, user_id, role, content):
+    async def save(self, guild_id, channel_id, user_id, role, content):
 
-        cur = db.cursor()
+        async with write_lock:
 
-        cur.execute(
-            """
-            INSERT INTO memory(
-                guild_id, channel_id, user_id, role, content
+            cur = db.cursor()
+
+            cur.execute(
+                """
+                INSERT INTO memory(
+                    guild_id, channel_id, user_id, role, content
+                )
+                VALUES(?,?,?,?,?)
+                """,
+                (guild_id, channel_id, user_id, role, content)
             )
-            VALUES(?,?,?,?,?)
-            """,
-            (guild_id, channel_id, user_id, role, content)
-        )
 
-        db.commit()
+            db.commit()
 
-        self.clean(guild_id, channel_id, user_id)
+            self._clean(guild_id, channel_id, user_id)
 
-    def clean(self, guild_id, channel_id, user_id):
+    def _clean(self, guild_id, channel_id, user_id):
+        """
+        เรียกเฉพาะจากภายใน save() ที่ถือ write_lock อยู่แล้วเท่านั้น
+        ห้ามเรียกตรงจากข้างนอก ไม่งั้นจะไม่ถูก lock คุ้มครอง
+        """
 
         cur = db.cursor()
 
@@ -41,7 +45,7 @@ class MemoryManager:
             """,
             (
                 guild_id, channel_id, user_id,
-                MAX_MEMORY,
+                config.MAX_HISTORY,
                 guild_id, channel_id, user_id
             )
         )
@@ -66,3 +70,4 @@ class MemoryManager:
 
 
 memory = MemoryManager()
+
