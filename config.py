@@ -32,20 +32,30 @@ MODEL_NAME = "gemini-3.1-flash-lite"   # ตัวที่บอทใช้ต
 # AI
 # =====================================================
 
-TEMPERATURE = 0.8
-TOP_P = 0.95
-TOP_K = 40
-MAX_OUTPUT_TOKENS = 8192
+TEMPERATURE = 1
+TOP_P = 0.9
+TOP_K = 20
+
+# ลดจาก 8192 -> 1024: คำตอบยาวเกิน 4096 token (~3,000 คำ) แทบไม่จำเป็น
+# สำหรับแชทบอท Discord และ output token มีราคาแพงกว่า input token หลายเท่า
+# ลดเพดานนี้ช่วยตัดต้นทุนได้จริงโดยแทบไม่กระทบการใช้งานปกติ
+# ถ้าต้องการให้ตอบยาวกว่านี้ (เช่นเขียนโค้ดยาวๆ) ปรับค่านี้ขึ้นได้ตามต้องการ
+MAX_OUTPUT_TOKENS = 1024
 
 # =====================================================
 # Memory
 # =====================================================
 
-MAX_HISTORY = 30
+MAX_HISTORY = 12
 
 ENABLE_LONG_MEMORY = True
 
 ENABLE_MEMORY_EXTRACTOR = True
+
+# จำกัดจำนวน fact สูงสุดต่อ user ใน long_memory (กัน token cost ไหล
+# ขึ้นไม่หยุดเมื่อใช้งานไปนานๆ เพราะ extractor จะสกัด fact ใหม่เพิ่ม
+# เรื่อยๆ ทุกข้อความถ้าไม่จำกัดไว้ — ดู memory/long_memory.py:_clean())
+MAX_LONG_MEMORY_FACTS = 40
 
 # =====================================================
 # Vision
@@ -53,7 +63,7 @@ ENABLE_MEMORY_EXTRACTOR = True
 
 ENABLE_VISION = True
 
-MAX_IMAGE_SIZE_MB = 20
+MAX_IMAGE_SIZE_MB = 15
 
 SUPPORTED_IMAGE_TYPES = {
 
@@ -71,7 +81,7 @@ SUPPORTED_IMAGE_TYPES = {
 
 ENABLE_FILE_READER = True
 
-MAX_FILE_SIZE_MB = 25
+MAX_FILE_SIZE_MB = 15
 
 SUPPORTED_DOCUMENTS = {
 
@@ -89,7 +99,7 @@ SUPPORTED_DOCUMENTS = {
 
 ENABLE_GOOGLE_SEARCH = True
 
-SEARCH_MAX_RESULTS = 5
+SEARCH_MAX_RESULTS = 3
 
 # =====================================================
 # Streaming
@@ -123,9 +133,9 @@ SYSTEM_PROMPT_FILE = "ai/system_prompt.py"
 # Limits
 # =====================================================
 
-DISCORD_MESSAGE_LIMIT = 2000
+DISCORD_MESSAGE_LIMIT = 1500
 
-MAX_ATTACHMENTS = 10
+MAX_ATTACHMENTS = 4
 
 # =====================================================
 # Debug
