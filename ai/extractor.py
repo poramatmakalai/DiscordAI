@@ -19,28 +19,14 @@ logger = logging.getLogger(__name__)
 
 # ─── Prompt ────────────────────────────────────────────────────────────────────
 
-_EXTRACT_PROMPT = """
-You are a memory extraction assistant.
-
-Analyze the conversation below and extract any important, reusable facts about the USER only.
-
-Rules:
-- Extract facts that are stable and worth remembering long-term.
-- Ignore one-time requests or trivial messages.
-- Use short, clear keys in English (snake_case).
-- Values should be concise.
-- Output ONLY a valid JSON object. No explanation, no markdown.
-- If there is nothing worth remembering, output exactly: {}
-
-Examples of good keys:
-  name, age, occupation, programming_language, os, hobby, location, project
-
-Conversation:
-User: {user_message}
-Assistant: {ai_reply}
-
-JSON output:
-""".strip()
+_EXTRACT_PROMPT = (
+    "Extract stable, reusable facts about the USER from this exchange "
+    "(ignore one-off requests). Keys: short snake_case English "
+    "(e.g. name, age, occupation, language, os, hobby, location, project). "
+    "Output ONLY a JSON object, no markdown/explanation. "
+    "If nothing worth remembering, output {{}}.\n"
+    "User: {user_message}\nAssistant: {ai_reply}\nJSON:"
+)
 
 
 # ─── Extractor ─────────────────────────────────────────────────────────────────
@@ -68,13 +54,18 @@ async def extract_and_save(
     if not config.ENABLE_MEMORY_EXTRACTOR:
         return
 
+    # ข้อความสั้น/trivial เกินไป ไม่น่ามี fact ให้สกัด — ข้าม เพื่อประหยัด
+    # การเรียก API ทั้งครั้ง (ไม่ใช่แค่ token แต่คือทั้ง request)
+    if len(user_message.strip()) < 8:
+        return
+
     try:
         # Import lazily to avoid circular imports at module load time
         from ai.gemini import _get_extractor_client
 
         prompt = _EXTRACT_PROMPT.format(
-            user_message=user_message[:1000],
-            ai_reply=ai_reply[:1000],
+            user_message=user_message[:600],
+            ai_reply=ai_reply[:600],
         )
 
         client = _get_extractor_client()
