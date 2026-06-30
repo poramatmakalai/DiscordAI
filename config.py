@@ -32,7 +32,7 @@ MODEL_NAME = "gemini-3.1-flash-lite"   # ตัวที่บอทใช้ต
 # AI
 # =====================================================
 
-TEMPERATURE = 0.5
+TEMPERATURE = 0.8
 TOP_P = 0.95
 TOP_K = 40
 MAX_OUTPUT_TOKENS = 8192
