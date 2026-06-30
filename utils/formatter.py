@@ -62,7 +62,6 @@ def split_response(text: str):
 
         # ดึงชื่อภาษาจาก ``` ตัวล่าสุดที่ "เปิด" บล็อกใน chunk นี้ (ถ้ามี)
         opens = list(re.finditer(r"```([^\n`]*)\n?", chunk))
-        was_in_block = in_code_block
 
         if fence_count % 2 != 0:
             in_code_block = not in_code_block
