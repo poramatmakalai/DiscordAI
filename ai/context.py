@@ -1,22 +1,6 @@
 import config
 
 
-def _memory_text(long_memory):
-
-    if not config.ENABLE_LONG_MEMORY:
-        return None
-
-    if not long_memory:
-        return None
-
-    lines = ["# User Memory"]
-
-    for key, value in long_memory:
-        lines.append(f"{key}: {value}")
-
-    return "\n".join(lines)
-
-
 def _search_text(search_result):
 
     if not config.ENABLE_GOOGLE_SEARCH:
@@ -46,9 +30,7 @@ def _vision_text(image_summary):
 
 def build_contents(
 
-    history,
-
-    long_memory=None,
+    message_text,
 
     search_result=None,
 
@@ -57,56 +39,31 @@ def build_contents(
     image_summary=None
 
 ):
+    """
+    สร้าง contents สำหรับ Gemini แบบ single-turn (ไม่มีระบบความจำ/ประวัติแชท
+    อีกต่อไป) — แต่ละข้อความที่ผู้ใช้ส่งมาจะถูกส่งให้ AI แบบแยกอิสระ
+    ไม่มี context จากข้อความก่อนหน้า
 
-    contents = []
-
-    # ----------------------------
-    # รวมบล็อกนำหน้าทั้งหมด (memory / search / file / vision) เป็น
-    # "user turn" เดียวแทนที่จะแยกหลาย turn ติดกัน — กัน Gemini สับสน
-    # กับการเจอ role="user" ต่อกันหลายครั้งโดยไม่มี "model" คั่น
-    # ----------------------------
+    Parameters
+    ──────────
+    message_text  : ข้อความปัจจุบันจากผู้ใช้ (str)
+    search_result : ผลลัพธ์จาก Google Search (ถ้าเปิดใช้งาน)
+    file_summary  : เนื้อหาที่สกัดจากไฟล์แนบ (ถ้ามี)
+    image_summary : คำอธิบาย/บริบทของรูปภาพแนบ (ถ้ามี)
+    """
 
     lead_blocks = [
-        _memory_text(long_memory),
         _search_text(search_result),
         _file_text(file_summary),
         _vision_text(image_summary),
     ]
 
     lead_blocks = [b for b in lead_blocks if b]
-    lead_text = "\n\n".join(lead_blocks) if lead_blocks else None
 
-    # ----------------------------
-    # Conversation
-    # ----------------------------
+    parts = lead_blocks + [message_text]
 
-    history = [
-        (role, content) for role, content in history
-        if role in ("user", "model")
+    text = "\n\n".join(parts)
+
+    return [
+        {"role": "user", "parts": [{"text": text}]}
     ]
-
-    if lead_text:
-        if history and history[0][0] == "user":
-            # ----------------------------
-            # ถ้าเทิร์นแรกของ history เป็น "user" อยู่แล้ว ให้รวม
-            # lead_blocks เข้าไปในเทิร์นเดียวกันแทนที่จะแทรกเป็น
-            # Content แยกต่างหาก — กัน Gemini เจอ role="user" ติดกัน
-            # สอง turn รวด ซึ่งไม่ใช่รูปแบบ multi-turn ที่ถูกต้อง
-            # ----------------------------
-            first_role, first_content = history[0]
-            merged = f"{lead_text}\n\n{first_content}"
-            contents.append(
-                {"role": first_role, "parts": [{"text": merged}]}
-            )
-            history = history[1:]
-        else:
-            contents.append(
-                {"role": "user", "parts": [{"text": lead_text}]}
-            )
-
-    for role, content in history:
-        contents.append(
-            {"role": role, "parts": [{"text": content}]}
-        )
-
-    return contents

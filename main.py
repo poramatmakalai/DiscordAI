@@ -8,12 +8,9 @@ import aiohttp
 
 import config
 
-from memory.manager import memory
-from memory.long_memory import long_memory
 from ai.context import build_contents
 from ai.gemini import ask, ask_stream          # ← เพิ่ม ask_stream
 from ai.gemini import GeminiRetryExhausted, GeminiError
-from ai.extractor import extract_and_save
 
 from utils.logger import logger
 from utils.formatter import split_response
@@ -187,33 +184,12 @@ async def on_message(message):
 
         try:
 
-            guild_id   = message.guild.id
-            channel_id = message.channel.id
-            user_id    = message.author.id
-
             # ------------------------------------------------------------------
-            # Save User Message
+            # Build Contents (single-turn — ไม่มีระบบความจำ/ประวัติแชทอีกต่อไป)
             # ------------------------------------------------------------------
-
-            await memory.save(
-                guild_id,
-                channel_id,
-                user_id,
-                "user",
-                message.content or "[ส่งไฟล์แนบ]",
-            )
-
-            # ------------------------------------------------------------------
-            # History + Long Memory
-            # ------------------------------------------------------------------
-
-            history = memory.history(guild_id, channel_id, user_id)
-
-            user_long_memory = long_memory.get(guild_id, user_id)
 
             contents = build_contents(
-                history,
-                long_memory=user_long_memory if config.ENABLE_LONG_MEMORY else None,
+                message.content or "[ส่งไฟล์แนบ]",
             )
 
             # ------------------------------------------------------------------
@@ -278,37 +254,11 @@ async def on_message(message):
             if not reply:
                 return
 
-            # ------------------------------------------------------------------
-            # Save Model Reply
-            # ------------------------------------------------------------------
-
-            await memory.save(
-                guild_id,
-                channel_id,
-                user_id,
-                "model",
-                reply,
-            )
-
             logger.info(
                 f"{message.author} | {len(reply)} chars | "
                 f"attachments={len(message.attachments)} | "
                 f"streaming={config.ENABLE_STREAMING}"
             )
-
-            # ------------------------------------------------------------------
-            # Extract Long Memory (background)
-            # ------------------------------------------------------------------
-
-            if config.ENABLE_MEMORY_EXTRACTOR:
-                asyncio.create_task(
-                    extract_and_save(
-                        guild_id,
-                        user_id,
-                        message.content or "[ส่งไฟล์แนบ]",
-                        reply,
-                    )
-                )
 
             # ------------------------------------------------------------------
             # Send Reply (Normal mode — Streaming ส่งไปแล้วใน send_streaming_reply)

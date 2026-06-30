@@ -823,35 +823,6 @@ def _get_default_client() -> "GeminiClient":
     return _default_client
 
 
-_extractor_client: Optional["GeminiClient"] = None
-
-
-def _get_extractor_client() -> "GeminiClient":
-    """
-    Client แยกต่างหากสำหรับ ai/extractor.py (Memory Extractor)
-
-    ใช้ system_instruction เป็น None โดยตั้งใจ — ไม่ใช้ SYSTEM_PROMPT
-    บุคลิก PhuAi ของแชทบอท เพราะงาน extract ต้องการให้โมเดลตอบ JSON
-    ล้วนๆ ตามคำสั่งใน _EXTRACT_PROMPT เท่านั้น ถ้าใช้ client ตัวเดียวกับ
-    แชท (ที่มี system prompt ยาวสั่งเรื่องบุคลิก/โทน/ฟอร์แมต) โมเดลอาจ
-    ตอบแบบข้อความสนทนาแทนที่จะเป็น JSON ล้วนๆ ทำให้ json.loads() พัง
-    และ memory ไม่ถูกบันทึกแบบเงียบๆ โดยไม่รู้ตัว
-
-    ใช้ temperature ต่ำกว่าแชทปกติ เพราะงานสกัดข้อมูลต้องการความแน่นอน
-    ของผลลัพธ์ ไม่ใช่ความหลากหลายเชิงสร้างสรรค์
-    """
-    global _extractor_client
-    if _extractor_client is None:
-        _extractor_client = GeminiClient(
-            api_key             = _config.GEMINI_API_KEY,
-            model               = getattr(_config, "MODEL_NAME",        DEFAULT_MODEL),
-            system_instruction  = None,
-            temperature         = 0.1,
-            max_output_tokens   = 512,
-        )
-    return _extractor_client
-
-
 async def ask(
     contents: Union[str, list],
     *,
