@@ -430,6 +430,43 @@ class GeminiClient:
 
         return sdk_contents
 
+    def _attach_files_to_contents(
+        self,
+        sdk_contents: list[types.Content],
+        files: Optional[list[str]],
+    ) -> list[types.Content]:
+        """
+        แนบไฟล์เข้าไปในเทิร์น user ล่าสุดของ sdk_contents อย่างปลอดภัย
+
+        เดิมโค้ดใช้ ``sdk_contents[-1].parts.extend(file_parts)`` ซึ่ง
+        สมมติว่า ``types.Content.parts`` เป็น mutable list เสมอ ถ้า SDK
+        เวอร์ชันไหนคืน parts เป็น tuple หรือ pydantic model แบบ frozen
+        บรรทัดนั้นจะพังด้วย AttributeError ทันทีที่มีคนแนบไฟล์มาพร้อม
+        ประวัติแชท จึงเปลี่ยนมาสร้าง ``types.Content`` ตัวใหม่แทนการ
+        mutate ของเดิม — ปลอดภัยไม่ว่า parts จะเป็น list หรือ tuple
+        """
+        if not files:
+            return sdk_contents
+
+        file_parts = [_file_to_part(fp) for fp in files]
+        file_parts = [
+            p if isinstance(p, types.Part) else types.Part.from_text(text=p)
+            for p in file_parts
+        ]
+
+        if sdk_contents and sdk_contents[-1].role == "user":
+            last = sdk_contents[-1]
+            merged_parts = list(last.parts or []) + file_parts
+            sdk_contents = sdk_contents[:-1] + [
+                types.Content(role="user", parts=merged_parts)
+            ]
+        else:
+            sdk_contents = sdk_contents + [
+                types.Content(role="user", parts=file_parts)
+            ]
+
+        return sdk_contents
+
     # ── Sync/Async: Generate from pre-built contents (multi-turn) ─────────────
 
     @_sync_retry
@@ -447,17 +484,7 @@ class GeminiClient:
         ถ้ามี ``files`` จะถูกแนบเพิ่มเข้าไปในเทิร์นผู้ใช้ล่าสุด
         """
         sdk_contents = self._dict_contents_to_sdk(contents)
-
-        if files:
-            file_parts = [_file_to_part(fp) for fp in files]
-            file_parts = [
-                p if isinstance(p, types.Part) else types.Part.from_text(text=p)
-                for p in file_parts
-            ]
-            if sdk_contents and sdk_contents[-1].role == "user":
-                sdk_contents[-1].parts.extend(file_parts)
-            else:
-                sdk_contents.append(types.Content(role="user", parts=file_parts))
+        sdk_contents = self._attach_files_to_contents(sdk_contents, files)
 
         config = self._build_config(use_search=use_search)
 
@@ -477,17 +504,7 @@ class GeminiClient:
     ) -> str:
         """รุ่น async ของ :meth:`generate_from_contents`"""
         sdk_contents = self._dict_contents_to_sdk(contents)
-
-        if files:
-            file_parts = [_file_to_part(fp) for fp in files]
-            file_parts = [
-                p if isinstance(p, types.Part) else types.Part.from_text(text=p)
-                for p in file_parts
-            ]
-            if sdk_contents and sdk_contents[-1].role == "user":
-                sdk_contents[-1].parts.extend(file_parts)
-            else:
-                sdk_contents.append(types.Content(role="user", parts=file_parts))
+        sdk_contents = self._attach_files_to_contents(sdk_contents, files)
 
         config = self._build_config(use_search=use_search)
 
@@ -511,17 +528,7 @@ class GeminiClient:
         (ใช้งานร่วมกับ ENABLE_STREAMING ใน main.py)
         """
         sdk_contents = self._dict_contents_to_sdk(contents)
-
-        if files:
-            file_parts = [_file_to_part(fp) for fp in files]
-            file_parts = [
-                p if isinstance(p, types.Part) else types.Part.from_text(text=p)
-                for p in file_parts
-            ]
-            if sdk_contents and sdk_contents[-1].role == "user":
-                sdk_contents[-1].parts.extend(file_parts)
-            else:
-                sdk_contents.append(types.Content(role="user", parts=file_parts))
+        sdk_contents = self._attach_files_to_contents(sdk_contents, files)
 
         cfg = self._build_config(use_search=use_search)
 

@@ -246,29 +246,34 @@ async def on_message(message):
 
             timeout = 90 if message.attachments else 60
 
-            if config.ENABLE_STREAMING:
+            try:
 
-                # ── Streaming mode ─────────────────────────────────────────────
-                reply = await asyncio.wait_for(
-                    send_streaming_reply(
-                        message,
-                        contents,
-                        files=attached_files or None,
-                    ),
-                    timeout=timeout,
-                )
+                if config.ENABLE_STREAMING:
 
-            else:
+                    # ── Streaming mode ─────────────────────────────────────────
+                    reply = await asyncio.wait_for(
+                        send_streaming_reply(
+                            message,
+                            contents,
+                            files=attached_files or None,
+                        ),
+                        timeout=timeout,
+                    )
 
-                # ── Normal mode ────────────────────────────────────────────────
-                reply = await asyncio.wait_for(
-                    ask(contents, files=attached_files or None),
-                    timeout=timeout,
-                )
+                else:
 
-            # cleanup temp dir
-            if tmp_ctx:
-                tmp_ctx.__exit__(None, None, None)
+                    # ── Normal mode ──────────────────────────────────────────────
+                    reply = await asyncio.wait_for(
+                        ask(contents, files=attached_files or None),
+                        timeout=timeout,
+                    )
+
+            finally:
+                # cleanup temp dir — ต้องอยู่ใน finally เสมอ ไม่งั้นถ้า ask()/
+                # ask_stream() โยน exception ออกมา (timeout, GeminiError ฯลฯ)
+                # ไฟล์แนบที่ดาวน์โหลดไว้จะค้างอยู่ในดิสก์ตลอดไป (resource leak)
+                if tmp_ctx:
+                    tmp_ctx.__exit__(None, None, None)
 
             if not reply:
                 return
@@ -300,7 +305,7 @@ async def on_message(message):
                     extract_and_save(
                         guild_id,
                         user_id,
-                        message.content or "[ไฟล์แนบ]",
+                        message.content or "[ส่งไฟล์แนบ]",
                         reply,
                     )
                 )
@@ -409,5 +414,3 @@ async def start():
 
 if __name__ == "__main__":
     asyncio.run(start())
-
-    

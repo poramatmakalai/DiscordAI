@@ -74,40 +74,39 @@ def build_contents(
     ]
 
     lead_blocks = [b for b in lead_blocks if b]
-
-    if lead_blocks:
-        contents.append(
-            {
-                "role": "user",
-                "parts": [
-                    {
-                        "text": "\n\n".join(lead_blocks)
-                    }
-                ]
-            }
-        )
+    lead_text = "\n\n".join(lead_blocks) if lead_blocks else None
 
     # ----------------------------
     # Conversation
     # ----------------------------
 
+    history = [
+        (role, content) for role, content in history
+        if role in ("user", "model")
+    ]
+
+    if lead_text:
+        if history and history[0][0] == "user":
+            # ----------------------------
+            # ถ้าเทิร์นแรกของ history เป็น "user" อยู่แล้ว ให้รวม
+            # lead_blocks เข้าไปในเทิร์นเดียวกันแทนที่จะแทรกเป็น
+            # Content แยกต่างหาก — กัน Gemini เจอ role="user" ติดกัน
+            # สอง turn รวด ซึ่งไม่ใช่รูปแบบ multi-turn ที่ถูกต้อง
+            # ----------------------------
+            first_role, first_content = history[0]
+            merged = f"{lead_text}\n\n{first_content}"
+            contents.append(
+                {"role": first_role, "parts": [{"text": merged}]}
+            )
+            history = history[1:]
+        else:
+            contents.append(
+                {"role": "user", "parts": [{"text": lead_text}]}
+            )
+
     for role, content in history:
-
-        if role not in (
-            "user",
-            "model"
-        ):
-            continue
-
         contents.append(
-            {
-                "role": role,
-                "parts": [
-                    {
-                        "text": content
-                    }
-                ]
-            }
+            {"role": role, "parts": [{"text": content}]}
         )
 
     return contents
