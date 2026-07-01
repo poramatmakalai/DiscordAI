@@ -3,12 +3,29 @@
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
 .venv/
 venv/
-
-# Database
-database/database.db
+env/
+*.egg-info/
+dist/
+build/
 
 # Logs
 logs/*.log
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.bak
