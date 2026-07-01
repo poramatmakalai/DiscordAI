@@ -56,7 +56,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import mimetypes
 import time
 from pathlib import Path
@@ -66,8 +65,16 @@ from google import genai
 from google.genai import types
 
 # ─── Logger ───────────────────────────────────────────────────────────────────
+#
+# สำคัญ: ต้องใช้ logger ตัวเดียวกับ utils/logger.py (ชื่อ "DiscordAI") ห้ามใช้
+# logging.getLogger(__name__) เฉยๆ เพราะ __name__ ในไฟล์นี้จะกลายเป็น
+# "ai.gemini" ซึ่งไม่มี handler (file + console) ผูกอยู่เลย — ผลคือ log
+# ทุกบรรทัดในไฟล์นี้ (retry warning, quota exhausted, debug โหลดไฟล์ ฯลฯ)
+# จะไม่ถูกเขียนลง logs/bot.log และไม่ผ่าน LOG_LEVEL ที่ตั้งไว้ใน config เลย
+# มีแค่ WARNING ขึ้นไปที่หลุดออก stderr ผ่าน Python's last-resort handler
+# แบบ format ไม่ตรงกับที่ตั้งไว้เท่านั้น
 
-logger = logging.getLogger(__name__)
+from utils.logger import logger
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 

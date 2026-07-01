@@ -1,6 +1,12 @@
 import re
 
-DISCORD_LIMIT = 2000
+import config
+
+# ใช้ค่าเดียวกับ config.DISCORD_MESSAGE_LIMIT เสมอ (ของเดิมมี DISCORD_LIMIT
+# แยกต่างหากในไฟล์นี้ = 2000 ในขณะที่ config.DISCORD_MESSAGE_LIMIT = 1500
+# ทำให้ค่าที่ใช้ตัด preview ระหว่าง streaming กับค่าที่ใช้ตัดข้อความจริง
+# ไม่ตรงกัน — ตอนนี้รวมเป็นตัวแปรเดียว แก้ที่ config.py ที่เดียวพอ)
+DISCORD_LIMIT = config.DISCORD_MESSAGE_LIMIT
 
 
 def clean_response(text: str) -> str:
