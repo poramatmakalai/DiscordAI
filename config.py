@@ -52,7 +52,7 @@ VISION_MODEL = os.getenv("VISION_MODEL", "llava-phi3")
 # เวลาโหลดโมเดลใหม่จากดิสก์อีกรอบ (มักช้ากว่าตอบจริงเสียอีกบนเครื่องไม่มี
 # การ์ดจอแยก) ตั้งไว้นานขึ้นหน่อยเพื่อให้โมเดล "อุ่น" ค้างไว้ในแชทที่คุยถี่ๆ
 # กัน re-load ซ้ำๆ โดยไม่จำเป็น ปรับได้ผ่าน .env (OLLAMA_KEEP_ALIVE)
-OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
 
 # ขนาด context window ที่ส่งให้ Ollama ต่อ request (จำนวน token)
 # ระบุตรงๆ แทนที่จะปล่อยให้ใช้ default ของแต่ละโมเดล เพราะ:
@@ -80,7 +80,7 @@ MAX_OUTPUT_TOKENS = 768
 
 ENABLE_VISION = True
 
-MAX_IMAGE_SIZE_MB = 15
+MAX_IMAGE_SIZE_MB = 10
 
 SUPPORTED_IMAGE_TYPES = {
 
@@ -99,7 +99,7 @@ SUPPORTED_IMAGE_TYPES = {
 
 ENABLE_FILE_READER = True
 
-MAX_FILE_SIZE_MB = 15
+MAX_FILE_SIZE_MB = 10
 
 SUPPORTED_DOCUMENTS = {
 
@@ -133,7 +133,7 @@ SEARCH_MODE = os.getenv("SEARCH_MODE", "auto")
 # Streaming
 # =====================================================
 
-ENABLE_STREAMING = True
+ENABLE_STREAMING = False
 
 STREAM_EDIT_INTERVAL = 1.0
 
