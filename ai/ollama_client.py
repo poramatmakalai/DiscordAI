@@ -24,6 +24,7 @@ from typing import AsyncGenerator, Optional
 import aiohttp
 
 from utils.logger import logger
+from utils.http import get_session
 import config as _config
 
 try:
@@ -75,11 +76,20 @@ def _build_payload(prompt: str, images: Optional[list[bytes]], stream: bool) -> 
         "model": _select_model(bool(images)),
         "messages": messages,
         "stream": stream,
+        # keep_alive: บอก Ollama ให้กันโมเดลค้างอยู่ใน RAM นานเท่านี้หลัง
+        # request นี้ (ไม่ใช้ default 5 นาทีของ Ollama เอง) กัน reload
+        # โมเดลจากดิสก์ซ้ำๆ ถ้ามีคนแชทถี่กว่านั้น — ลด latency ของข้อความ
+        # ถัดๆ ไปได้มากบนเครื่องที่ไม่มีการ์ดจอแยก
+        "keep_alive": _config.OLLAMA_KEEP_ALIVE,
         "options": {
             "temperature": _config.TEMPERATURE,
             "top_p": _config.TOP_P,
             "top_k": _config.TOP_K,
             "num_predict": _config.MAX_OUTPUT_TOKENS,
+            # ระบุ context window ตรงๆ กันโมเดลใช้ค่า default ที่อาจเล็ก
+            # เกินไปจน prompt (system prompt + เอกสาร/ผลค้นเว็บ) ถูกตัด
+            # ท้ายเงียบๆ หรือใหญ่เกินจำเป็นจนกิน RAM/ช้าลงบน CPU
+            "num_ctx": _config.OLLAMA_NUM_CTX,
         },
     }
 
@@ -94,14 +104,14 @@ async def ask(prompt: str, images: Optional[list[bytes]] = None) -> str:
     url = f"{_config.OLLAMA_HOST}/api/chat"
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url, json=payload, timeout=aiohttp.ClientTimeout(total=300)
-            ) as resp:
-                if resp.status != 200:
-                    text = await resp.text()
-                    raise OllamaResponseError(f"Ollama HTTP {resp.status}: {text[:300]}")
-                data = await resp.json()
+        session = get_session()
+        async with session.post(
+            url, json=payload, timeout=aiohttp.ClientTimeout(total=300)
+        ) as resp:
+            if resp.status != 200:
+                text = await resp.text()
+                raise OllamaResponseError(f"Ollama HTTP {resp.status}: {text[:300]}")
+            data = await resp.json()
     except aiohttp.ClientConnectorError as exc:
         raise OllamaConnectionError(
             f"ต่อ Ollama ที่ {_config.OLLAMA_HOST} ไม่ได้ — เช็คว่ารัน `ollama serve` อยู่หรือยัง"
@@ -129,34 +139,34 @@ async def ask_stream(prompt: str, images: Optional[list[bytes]] = None) -> Async
     url = f"{_config.OLLAMA_HOST}/api/chat"
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url, json=payload, timeout=aiohttp.ClientTimeout(total=300)
-            ) as resp:
+        session = get_session()
+        async with session.post(
+            url, json=payload, timeout=aiohttp.ClientTimeout(total=300)
+        ) as resp:
 
-                if resp.status != 200:
-                    text = await resp.text()
-                    raise OllamaResponseError(f"Ollama HTTP {resp.status}: {text[:300]}")
+            if resp.status != 200:
+                text = await resp.text()
+                raise OllamaResponseError(f"Ollama HTTP {resp.status}: {text[:300]}")
 
-                async for raw_line in resp.content:
-                    line = raw_line.strip()
-                    if not line:
-                        continue
+            async for raw_line in resp.content:
+                line = raw_line.strip()
+                if not line:
+                    continue
 
-                    try:
-                        obj = json.loads(line)
-                    except json.JSONDecodeError:
-                        logger.warning(
-                            "[Ollama] ข้าม line ที่ parse JSON ไม่ได้: %r", line[:200]
-                        )
-                        continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "[Ollama] ข้าม line ที่ parse JSON ไม่ได้: %r", line[:200]
+                    )
+                    continue
 
-                    chunk = obj.get("message", {}).get("content", "")
-                    if chunk:
-                        yield chunk
+                chunk = obj.get("message", {}).get("content", "")
+                if chunk:
+                    yield chunk
 
-                    if obj.get("done"):
-                        break
+                if obj.get("done"):
+                    break
 
     except aiohttp.ClientConnectorError as exc:
         raise OllamaConnectionError(

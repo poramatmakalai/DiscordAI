@@ -12,12 +12,14 @@ ai/web_search.py
 
 from __future__ import annotations
 
+import re
 from typing import TypedDict
 
 import aiohttp
 from bs4 import BeautifulSoup
 
 from utils.logger import logger
+from utils.http import get_session
 
 _SEARCH_URL = "https://html.duckduckgo.com/html/"
 _HEADERS = {
@@ -28,11 +30,38 @@ _HEADERS = {
     )
 }
 
+# คำ/รูปแบบที่บ่งชี้ว่าข้อความน่าจะต้องใช้ข้อมูลล่าสุด/ภายนอกจริงๆ
+# ใช้ตอน config.SEARCH_MODE == "auto" เพื่อข้ามการค้นเว็บทิ้งสำหรับข้อความ
+# ทั่วไป (ทักทาย, ขอโค้ด, คุยเล่น ฯลฯ) ที่ไม่ได้ต้องการข้อมูลภายนอกจริงๆ
+_TRIGGER_WORDS = (
+    "ล่าสุด", "วันนี้", "ตอนนี้", "ข่าว", "ราคา", "อัปเดต", "อัพเดท",
+    "เมื่อไหร่", "เมื่อไร", "กี่โมง", "search", "latest", "news", "price",
+    "today", "current", "update",
+)
+_URL_RE = re.compile(r"https?://\S+")
 
-class SearchResult(TypedDict):
-    title: str
-    snippet: str
-    url: str
+
+def should_search(text: str) -> bool:
+    """
+    Heuristic ง่ายๆ ว่าข้อความนี้ควรค้นเว็บไหม (ใช้เมื่อ config.SEARCH_MODE
+    == "auto") — เช็คว่ามีเครื่องหมายคำถาม, มีคำที่บ่งชี้ข้อมูลล่าสุด,
+    หรือมี URL แนบมาหรือเปล่า ถ้าไม่เข้าเงื่อนไขไหนเลยถือว่าไม่จำเป็นต้อง
+    เสียเวลา round-trip ไป DuckDuckGo
+    """
+    if not text:
+        return False
+
+    if "?" in text or "ไหม" in text or "หรือไม่" in text:
+        return True
+
+    lowered = text.lower()
+    if any(word in text or word in lowered for word in _TRIGGER_WORDS):
+        return True
+
+    if _URL_RE.search(text):
+        return True
+
+    return False
 
 
 async def search_duckduckgo(query: str, max_results: int = 3) -> list[SearchResult]:
@@ -44,16 +73,17 @@ async def search_duckduckgo(query: str, max_results: int = 3) -> list[SearchResu
     โดยไม่มีผลค้นเว็บประกอบแทน
     """
     try:
-        async with aiohttp.ClientSession(headers=_HEADERS) as session:
-            async with session.post(
-                _SEARCH_URL,
-                data={"q": query},
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
-                if resp.status != 200:
-                    logger.warning("[WebSearch] DuckDuckGo HTTP %d", resp.status)
-                    return []
-                html = await resp.text()
+        session = get_session()
+        async with session.post(
+            _SEARCH_URL,
+            data={"q": query},
+            headers=_HEADERS,
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as resp:
+            if resp.status != 200:
+                logger.warning("[WebSearch] DuckDuckGo HTTP %d", resp.status)
+                return []
+            html = await resp.text()
     except Exception as exc:
         logger.warning("[WebSearch] ค้นหาไม่สำเร็จ: %s", exc)
         return []
