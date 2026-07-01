@@ -11,9 +11,6 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 BOT_NAME = os.getenv("BOT_NAME", "PhuAi")
 
-# ALLOWED_CHANNELS อ่านจาก .env เป็น comma-separated string เช่น
-#   ALLOWED_CHANNELS=1521011933870948463,1234567890123456789
-# ถ้าไม่มีใน .env จะ fallback ไปใช้ค่า default ด้านล่าง
 _DEFAULT_ALLOWED_CHANNELS = [
 
     # ใส่ Channel ID ที่ต้องการให้ AI ตอบ (ใช้เฉพาะตอนไม่มี ALLOWED_CHANNELS ใน .env)
@@ -33,23 +30,25 @@ else:
     ALLOWED_CHANNELS = _DEFAULT_ALLOWED_CHANNELS
 
 # =====================================================
-# Gemini
+# Local AI (Ollama) — ไม่มี API key ใดๆ ทั้งสิ้น
 # =====================================================
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# แนะนำ
-# gemini-3.1-flash-lite  (เร็ว ถูก เหมาะกับแชทบอททั่วไป)
-# gemini-3-flash-preview (สมดุลคุณภาพ/ความเร็ว มี free tier)
 #
-# หมายเหตุ: ก่อน deploy จริง ควรเช็คชื่อโมเดลนี้กับเอกสาร Gemini API
-# ล่าสุดอีกครั้ง เพราะถ้าชื่อโมเดลไม่มีจริง/เปลี่ยนชื่อไปแล้ว จะได้ error
-# 404 "model not found" ตอนเรียก API ไม่ใช่ error โควต้า
+# ต้องติดตั้ง Ollama เอง (https://ollama.com/download) แล้วรัน `ollama serve`
+# บนเครื่องที่รันบอทนี้ ก่อนสั่งบอทให้ทำงาน
+#
+#   ollama pull llama3.2:3b     # โมเดลข้อความล้วน (เบา เหมาะกับ CPU ไม่มีการ์ดจอ)
+#   ollama pull llava-phi3      # โมเดล vision (ดูรูปได้) — ตัวเล็กสุดที่ยังพอใช้ได้
+#
+# ถ้าเครื่องแรงพอ/มีเวลารอ อยากได้คุณภาพสูงขึ้น เปลี่ยนเป็น llama3.1:8b /
+# qwen2.5-vl:7b ได้ แต่จะช้าลงมากถ้าไม่มีการ์ดจอแยก (เครื่องนี้ใช้ iGPU
+# ในตัว Ryzen 5 7520U รันบน CPU เป็นหลัก)
 
-MODEL_NAME = "gemini-3.1-flash-lite"   # ตัวที่บอทใช้ตอบแชทหลัก (GA, ไม่ใช่ -preview ที่เลิกใช้แล้ว)
+OLLAMA_HOST  = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+TEXT_MODEL   = os.getenv("TEXT_MODEL", "llama3.2:3b")
+VISION_MODEL = os.getenv("VISION_MODEL", "llava-phi3")
 
 # =====================================================
-# AI
+# AI (sampling params — ส่งเข้า Ollama options)
 # =====================================================
 
 TEMPERATURE = 0.5
@@ -57,9 +56,7 @@ TOP_P = 0.9
 TOP_K = 20
 
 # ลดจาก 8192 -> 1024: คำตอบยาวเกิน 4096 token (~3,000 คำ) แทบไม่จำเป็น
-# สำหรับแชทบอท Discord และ output token มีราคาแพงกว่า input token หลายเท่า
-# ลดเพดานนี้ช่วยตัดต้นทุนได้จริงโดยแทบไม่กระทบการใช้งานปกติ
-# ถ้าต้องการให้ตอบยาวกว่านี้ (เช่นเขียนโค้ดยาวๆ) ปรับค่านี้ขึ้นได้ตามต้องการ
+# สำหรับแชทบอท Discord — โมเดล local ยิ่งตอบยาวยิ่งช้ามากบน CPU
 MAX_OUTPUT_TOKENS = 768
 
 # =====================================================
@@ -70,9 +67,6 @@ ENABLE_VISION = True
 
 MAX_IMAGE_SIZE_MB = 15
 
-# หมายเหตุ: ต้องตรงกับ _IMAGE_EXTS ใน ai/gemini.py เสมอ (รวม .bmp ด้วย)
-# ก่อนหน้านี้ config ชุดนี้ไม่มี .bmp ทำให้ผู้ใช้แนบ .bmp มาแล้วโดนเขี่ยทิ้ง
-# เป็น "ไม่รองรับ" ทั้งที่ backend (gemini.py) รองรับจริง
 SUPPORTED_IMAGE_TYPES = {
 
     ".png",
@@ -80,12 +74,12 @@ SUPPORTED_IMAGE_TYPES = {
     ".jpeg",
     ".webp",
     ".gif",
-    ".bmp",
 
 }
 
 # =====================================================
-# File Reader
+# File Reader — อ่าน/extract ข้อความจากไฟล์แบบ local ทั้งหมด (ai/document_reader.py)
+# ไม่มีการอัปโหลดไฟล์ไปที่ไหนเลย
 # =====================================================
 
 ENABLE_FILE_READER = True
@@ -103,10 +97,12 @@ SUPPORTED_DOCUMENTS = {
 }
 
 # =====================================================
-# Google Search
+# Web Search — scrape DuckDuckGo (html.duckduckgo.com) ไม่ใช้ API key
+# ⚠️ ฟีเจอร์นี้เป็นจุดเดียวที่ยังต่อเน็ตออกไปหาที่อื่น (นอกจาก Discord เอง)
+#    ปิดได้ตรงนี้ถ้าต้องการให้บอทไม่ต่อเน็ตออกไปไหนเลยจริงๆ
 # =====================================================
 
-ENABLE_GOOGLE_SEARCH = True
+ENABLE_WEB_SEARCH = True
 
 SEARCH_MAX_RESULTS = 3
 
@@ -127,23 +123,9 @@ ENABLE_LOGGING = True
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # =====================================================
-# Prompt
-# =====================================================
-
-# ai/gemini.py import SYSTEM_PROMPT ตรงจาก ai/system_prompt.py อยู่แล้ว
-# (from ai.system_prompt import SYSTEM_PROMPT) ถ้าต้องการย้ายไฟล์ system
-# prompt ไปที่อื่น ให้แก้ import ตรงนั้น ไม่ใช่ค่าคงที่ path ตรงนี้
-# (เดิมมี SYSTEM_PROMPT_FILE ประกาศไว้แต่ไม่มีจุดไหนอ่านค่านี้ไปใช้จริง
-# จึงตัดออกเพื่อไม่ให้เข้าใจผิดว่าแก้ path ตรงนี้แล้วจะมีผล)
-
-# =====================================================
 # Limits
 # =====================================================
 
-# ใช้ค่าเดียวกันทั้งโปรเจกต์ — ทั้ง main.py (ตัด preview ระหว่าง streaming)
-# และ utils/formatter.py (ตัดข้อความสุดท้ายก่อนส่งจริง) import ค่านี้จาก
-# config แทนที่จะประกาศ DISCORD_LIMIT ซ้ำอีกตัวแยกกัน (ของเดิมมี 2 ค่า
-# ไม่ตรงกัน: config=1500, formatter.py=2000)
 DISCORD_MESSAGE_LIMIT = 2000
 
 MAX_ATTACHMENTS = 4
