@@ -41,6 +41,12 @@ _TRIGGER_WORDS = (
 _URL_RE = re.compile(r"https?://\S+")
 
 
+class SearchResult(TypedDict):
+    title: str
+    snippet: str
+    url: str
+
+
 def should_search(text: str) -> bool:
     """
     Heuristic ง่ายๆ ว่าข้อความนี้ควรค้นเว็บไหม (ใช้เมื่อ config.SEARCH_MODE
