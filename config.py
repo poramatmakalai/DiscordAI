@@ -91,7 +91,7 @@ SEARCH_MODE = os.getenv("SEARCH_MODE", "auto")
 # Streaming
 # =====================================================
 
-ENABLE_STREAMING = True
+ENABLE_STREAMING = False
 
 STREAM_EDIT_INTERVAL = 1.0
 
