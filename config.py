@@ -40,7 +40,7 @@ else:
 # 7520U รันบน CPU เป็นหลัก)
 
 OLLAMA_HOST  = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-TEXT_MODEL   = os.getenv("TEXT_MODEL", "qwen2.5:7b")
+TEXT_MODEL   = os.getenv("TEXT_MODEL", "qwen3:14b")
 
 # Ollama unload โมเดลออกจาก RAM อัตโนมัติถ้าไม่มี request เข้ามาเกินเวลานี้
 # (default ของ Ollama เองคือ 5 นาที) — พอ unload แล้ว request ถัดไปต้องเสีย
@@ -67,7 +67,7 @@ TOP_K = 30
 
 # ลดจาก 8192 -> 1024: คำตอบยาวเกิน 4096 token (~3,000 คำ) แทบไม่จำเป็น
 # สำหรับแชทบอท Discord — โมเดล local ยิ่งตอบยาวยิ่งช้ามากบน CPU
-MAX_OUTPUT_TOKENS = 1024
+MAX_OUTPUT_TOKENS = 2048
 
 # =====================================================
 # Web Search — scrape DuckDuckGo (html.duckduckgo.com) ไม่ใช้ API key
