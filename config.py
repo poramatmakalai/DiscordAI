@@ -66,13 +66,13 @@ OLLAMA_NUM_CTX = int(os.getenv("OLLAMA_NUM_CTX", "4096"))
 # AI (sampling params — ส่งเข้า Ollama options)
 # =====================================================
 
-TEMPERATURE = 0.5
+TEMPERATURE = 0.6
 TOP_P = 0.9
-TOP_K = 20
+TOP_K = 30
 
 # ลดจาก 8192 -> 1024: คำตอบยาวเกิน 4096 token (~3,000 คำ) แทบไม่จำเป็น
 # สำหรับแชทบอท Discord — โมเดล local ยิ่งตอบยาวยิ่งช้ามากบน CPU
-MAX_OUTPUT_TOKENS = 768
+MAX_OUTPUT_TOKENS = 1024
 
 # =====================================================
 # Vision
@@ -97,7 +97,7 @@ SUPPORTED_IMAGE_TYPES = {
 # ไม่มีการอัปโหลดไฟล์ไปที่ไหนเลย
 # =====================================================
 
-ENABLE_FILE_READER = True
+ENABLE_FILE_READER = False
 
 MAX_FILE_SIZE_MB = 10
 
@@ -119,7 +119,7 @@ SUPPORTED_DOCUMENTS = {
 
 ENABLE_WEB_SEARCH = True
 
-SEARCH_MAX_RESULTS = 3
+SEARCH_MAX_RESULTS = 5
 
 # "auto" (แนะนำ) = ค้นเว็บเฉพาะข้อความที่ดูจำเป็นต้องใช้ข้อมูลล่าสุด/ภายนอก
 #                  (มีคำถาม, คำว่า "ล่าสุด/วันนี้/ราคา/ข่าว" ฯลฯ, หรือมี URL)
