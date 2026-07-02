@@ -37,15 +37,13 @@ else:
 # บนเครื่องที่รันบอทนี้ ก่อนสั่งบอทให้ทำงาน
 #
 #   ollama pull llama3.2:3b     # โมเดลข้อความล้วน (เบา เหมาะกับ CPU ไม่มีการ์ดจอ)
-#   ollama pull llava-phi3      # โมเดล vision (ดูรูปได้) — ตัวเล็กสุดที่ยังพอใช้ได้
 #
-# ถ้าเครื่องแรงพอ/มีเวลารอ อยากได้คุณภาพสูงขึ้น เปลี่ยนเป็น llama3.1:8b /
-# qwen2.5-vl:7b ได้ แต่จะช้าลงมากถ้าไม่มีการ์ดจอแยก (เครื่องนี้ใช้ iGPU
-# ในตัว Ryzen 5 7520U รันบน CPU เป็นหลัก)
+# ถ้าเครื่องแรงพอ/มีเวลารอ อยากได้คุณภาพสูงขึ้น เปลี่ยนเป็น llama3.1:8b
+# ได้ แต่จะช้าลงมากถ้าไม่มีการ์ดจอแยก (เครื่องนี้ใช้ iGPU ในตัว Ryzen 5
+# 7520U รันบน CPU เป็นหลัก)
 
 OLLAMA_HOST  = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 TEXT_MODEL   = os.getenv("TEXT_MODEL", "llama3.2:3b")
-VISION_MODEL = os.getenv("VISION_MODEL", "llava-phi3")
 
 # Ollama unload โมเดลออกจาก RAM อัตโนมัติถ้าไม่มี request เข้ามาเกินเวลานี้
 # (default ของ Ollama เองคือ 5 นาที) — พอ unload แล้ว request ถัดไปต้องเสีย
@@ -73,43 +71,6 @@ TOP_K = 30
 # ลดจาก 8192 -> 1024: คำตอบยาวเกิน 4096 token (~3,000 คำ) แทบไม่จำเป็น
 # สำหรับแชทบอท Discord — โมเดล local ยิ่งตอบยาวยิ่งช้ามากบน CPU
 MAX_OUTPUT_TOKENS = 1024
-
-# =====================================================
-# Vision
-# =====================================================
-
-ENABLE_VISION = True
-
-MAX_IMAGE_SIZE_MB = 10
-
-SUPPORTED_IMAGE_TYPES = {
-
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".webp",
-    ".gif",
-
-}
-
-# =====================================================
-# File Reader — อ่าน/extract ข้อความจากไฟล์แบบ local ทั้งหมด (ai/document_reader.py)
-# ไม่มีการอัปโหลดไฟล์ไปที่ไหนเลย
-# =====================================================
-
-ENABLE_FILE_READER = False
-
-MAX_FILE_SIZE_MB = 10
-
-SUPPORTED_DOCUMENTS = {
-
-    ".pdf",
-    ".docx",
-    ".txt",
-    ".csv",
-    ".json"
-
-}
 
 # =====================================================
 # Web Search — scrape DuckDuckGo (html.duckduckgo.com) ไม่ใช้ API key
@@ -150,8 +111,6 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 # =====================================================
 
 DISCORD_MESSAGE_LIMIT = 2000
-
-MAX_ATTACHMENTS = 4
 
 # =====================================================
 # Debug
