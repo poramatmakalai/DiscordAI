@@ -35,22 +35,19 @@ else:
 #
 # ต้องติดตั้ง Ollama เอง (https://ollama.com/download) แล้วรัน `ollama serve`
 # บนเครื่องที่รันบอทนี้ ก่อนสั่งบอทให้ทำงาน
-#
-#   ollama pull llama3.2:3b     # โมเดลข้อความล้วน (เบา เหมาะกับ CPU ไม่มีการ์ดจอ)
-#
 # ถ้าเครื่องแรงพอ/มีเวลารอ อยากได้คุณภาพสูงขึ้น เปลี่ยนเป็น llama3.1:8b
 # ได้ แต่จะช้าลงมากถ้าไม่มีการ์ดจอแยก (เครื่องนี้ใช้ iGPU ในตัว Ryzen 5
 # 7520U รันบน CPU เป็นหลัก)
 
 OLLAMA_HOST  = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-TEXT_MODEL   = os.getenv("TEXT_MODEL", "llama3.2:3b")
+TEXT_MODEL   = os.getenv("TEXT_MODEL", "qwen2.5:7b")
 
 # Ollama unload โมเดลออกจาก RAM อัตโนมัติถ้าไม่มี request เข้ามาเกินเวลานี้
 # (default ของ Ollama เองคือ 5 นาที) — พอ unload แล้ว request ถัดไปต้องเสีย
 # เวลาโหลดโมเดลใหม่จากดิสก์อีกรอบ (มักช้ากว่าตอบจริงเสียอีกบนเครื่องไม่มี
 # การ์ดจอแยก) ตั้งไว้นานขึ้นหน่อยเพื่อให้โมเดล "อุ่น" ค้างไว้ในแชทที่คุยถี่ๆ
 # กัน re-load ซ้ำๆ โดยไม่จำเป็น ปรับได้ผ่าน .env (OLLAMA_KEEP_ALIVE)
-OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "5m")
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "10m")
 
 # ขนาด context window ที่ส่งให้ Ollama ต่อ request (จำนวน token)
 # ระบุตรงๆ แทนที่จะปล่อยให้ใช้ default ของแต่ละโมเดล เพราะ:
@@ -94,7 +91,7 @@ SEARCH_MODE = os.getenv("SEARCH_MODE", "auto")
 # Streaming
 # =====================================================
 
-ENABLE_STREAMING = False
+ENABLE_STREAMING = True
 
 STREAM_EDIT_INTERVAL = 1.0
 
